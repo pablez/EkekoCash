@@ -1,0 +1,110 @@
+@startuml EkekoCash_DB
+title EkekoCash — Esquema de base de datos (mejorado)
+hide circle
+
+' Entidades con tipos y PK/FK marcados
+entity "Miembros" as Miembros {
+  * miembro_id : INTEGER <<PK>>
+  --
+  nombre : TEXT
+  color_perfil : TEXT
+}
+
+entity "Cuentas" as Cuentas {
+  * cuenta_id : INTEGER <<PK>>
+  --
+  nombre : TEXT
+  saldo_inicial : REAL
+  tipo_moneda : TEXT
+}
+
+entity "Categorias" as Categorias {
+  * categoria_id : INTEGER <<PK>>
+  --
+  nombre : TEXT
+  tipo : TEXT <<'Ingreso'|'Egreso'>>
+}
+
+entity "Subcategorias" as Subcategorias {
+  * subcategoria_id : INTEGER <<PK>>
+  --
+  nombre : TEXT
+  categoria_id : INTEGER <<FK>>
+}
+
+entity "Transacciones" as Transacciones {
+  * transaccion_id : INTEGER <<PK>>
+  --
+  fecha : TEXT <<ISO8601>>
+  monto : REAL
+  descripcion : TEXT
+  cuenta_id : INTEGER <<FK>>
+  subcategoria_id : INTEGER <<FK>>
+  miembro_id : INTEGER <<FK>>
+  tipo : TEXT <<'Ingreso'|'Egreso'>>
+}
+
+entity "Fondos" as Fondos {
+  * fondo_id : INTEGER <<PK>>
+  --
+  nombre : TEXT
+  meta_monto : REAL
+  fecha_meta : TEXT
+  icono_id : INTEGER
+}
+
+entity "Asignaciones_Ahorro" as Asignaciones {
+  * asignacion_id : INTEGER <<PK>>
+  --
+  monto_asignado : REAL
+  transaccion_id : INTEGER <<FK>>
+  fondo_id : INTEGER <<FK>>
+}
+
+' Relaciones (crow's foot)
+Miembros ||--o{ Transacciones : "realizó"
+Cuentas  ||--o{ Transacciones : "afecta_a"
+Categorias ||--o{ Subcategorias : "contiene"
+Subcategorias ||--o{ Transacciones : "clasifica"
+Transacciones ||--o{ Asignaciones : "financia"
+Fondos ||--o{ Asignaciones : "recibe"
+
+' Notas y recomendaciones
+note left of Transacciones
+  Recomendaciones:
+  - Guardar fechas en ISO8601 (TEXT).
+  - Usar transacciones DB para insertar Transaccion + Asignaciones.
+  - Añadir CHECK en "tipo" para 'Ingreso'/'Egreso'.
+  - Manejar migraciones con versionamiento en db_provider.
+end note
+
+note right of Transacciones
+  Índices sugeridos:
+  - idx_transacciones_fecha(fecha)
+  - idx_transacciones_cuenta(cuenta_id)
+  - idx_transacciones_subcategoria(subcategoria_id)
+  - idx_asignaciones_transaccion(transaccion_id)
+end note
+
+note bottom of Fondos
+  Diseño de Fondos:
+  - Fondos: metas de ahorro con meta_monto y fecha_meta.
+  - Asignaciones_Ahorro: vincula por transacción para mantener el histórico.
+end note
+
+' Pequeño snippet SQL (comentario visual)
+note bottom
+  Ejemplo DDL (resumen):
+  CREATE TABLE transacciones (
+    transaccion_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    fecha TEXT NOT NULL,
+    monto REAL NOT NULL,
+    descripcion TEXT,
+    cuenta_id INTEGER NOT NULL,
+    subcategoria_id INTEGER,
+    miembro_id INTEGER,
+    tipo TEXT NOT NULL CHECK(tipo IN ('Ingreso','Egreso'))
+  );
+end note
+
+@enduml

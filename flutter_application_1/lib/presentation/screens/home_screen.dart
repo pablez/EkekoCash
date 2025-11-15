@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'registro_rapido_screen.dart';
 import 'fondos_screen.dart';
 import 'categorias_screen.dart';
+import 'dashboard_screen.dart';
 import '../../app_providers.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
@@ -21,11 +22,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final pages = <Widget>[
+      final pages = <Widget>[
       const RegistroRapidoScreen(),
       _CuentasPage(),
       const FondosScreen(),
-      const _ReportesPage(),
+      const DashboardScreen(),
       const CategoriasScreen(),
     ];
 
@@ -131,14 +132,4 @@ class _CuentasPage extends ConsumerWidget {
   }
 }
 
-class _ReportesPage extends StatelessWidget {
-  const _ReportesPage();
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Reportes')),
-      body: const Center(child: Text('Próximamente: reportes y gráficos')),
-    );
-  }
-}
+// Reportes page replaced by DashboardScreen

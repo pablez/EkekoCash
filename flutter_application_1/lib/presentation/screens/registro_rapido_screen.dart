@@ -85,39 +85,43 @@ class _RegistroRapidoScreenState extends ConsumerState<RegistroRapidoScreen> {
 
     // Mostrar animación de confirmación breve (asset local) pero retrasada
     // para no bloquear inmediatamente la pantalla (permite interactuar con el SnackBar en tests).
-    Future.delayed(const Duration(milliseconds: 1000), () {
+    Future.delayed(const Duration(milliseconds: 600), () {
       if (!mounted) return;
-      // Mostrar un overlay ligero y no modal con la animación (auto-cierra)
-      showGeneralDialog<void>(
-        context: context,
-        barrierDismissible: true,
-        barrierLabel: 'Registro confirmado',
-        barrierColor: Colors.transparent,
-        pageBuilder: (ctx, a1, a2) {
-          return SafeArea(
-            child: Builder(builder: (ctx) {
-              Future.delayed(const Duration(milliseconds: 1200), () {
-                if (Navigator.of(ctx).canPop()) Navigator.of(ctx).pop();
-              });
-              return Center(
-                child: Container(
-                  width: 140,
-                  height: 140,
-                  decoration: BoxDecoration(color: Theme.of(context).dialogBackgroundColor, borderRadius: BorderRadius.circular(12), boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 8)]),
-                  padding: const EdgeInsets.all(12),
-                  child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                    SizedBox(width: 80, height: 80, child: Lottie.asset('assets/animations/success.json', repeat: false)),
-                    const SizedBox(height: 8),
-                    const Text('¡Registrado!', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
-                  ]),
+      final overlay = Overlay.of(context);
+      final overlayEntry = OverlayEntry(builder: (ctx) {
+        return Positioned(
+          bottom: 80,
+          left: 24,
+          right: 24,
+          child: Material(
+            color: Colors.transparent,
+            child: Center(
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).snackBarTheme.backgroundColor ?? Theme.of(context).colorScheme.surface,
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 8)],
                 ),
-              );
-            }),
-          );
-        },
-        transitionBuilder: (ctx, a1, a2, child) => FadeTransition(opacity: CurvedAnimation(parent: a1, curve: Curves.easeOut), child: child),
-        transitionDuration: const Duration(milliseconds: 200),
-      );
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  SizedBox(width: 64, height: 64, child: Lottie.asset('assets/animations/success.json', repeat: false)),
+                  const SizedBox(width: 12),
+                  Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: const [
+                    Text('¡Registrado!', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                  ]),
+                ]),
+              ),
+            ),
+          ),
+        );
+      });
+
+      overlay.insert(overlayEntry);
+      Future.delayed(const Duration(milliseconds: 1400), () {
+        try {
+          overlayEntry.remove();
+        } catch (_) {}
+      });
     });
 
     // Si es ingreso, abrir diálogo de asignación automáticamente (no await para no bloquear flujo)

@@ -1,10 +1,10 @@
 import '../../data/models/transaccion_model.dart';
-import '../../data/repositories/transaccion_repository.dart';
-import '../../data/repositories/cuenta_repository.dart';
+import '../repositories/i_transaccion_repository.dart';
+import '../repositories/i_cuenta_repository.dart';
 
 class CreateTransaccionUseCase {
-  final TransaccionRepository repository;
-  final CuentaRepository cuentaRepository;
+  final ITransaccionRepository repository;
+  final ICuentaRepository cuentaRepository;
 
   CreateTransaccionUseCase(this.repository, this.cuentaRepository);
 

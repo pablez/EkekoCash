@@ -1,0 +1,85 @@
+@startuml
+' Diagrama de secuencia: flujo crear transacción + asignación opcional
+
+actor Usuario
+
+participant "RegistroRapidoScreen\n(UI)" as UI
+participant "TransaccionNotifier\n(StateNotifier)" as Notifier
+participant "CreateTransaccionUseCase\n(Domain)" as UseCase
+participant "TransaccionRepository\n(Data/Repo)" as Repo
+database "DB (SQLite)\nDBProvider (v2)" as DB
+
+participant "RegistroRapidoScreen\n(Dialog)" as Dialog
+participant "CreateAsignacionUseCase\n(Domain)" as CreateAsignacion
+participant "FondoRepository\n(Data/Repo)" as FondoRepo
+participant "FondosNotifier\n(StateNotifier)" as FondosNotifier
+participant "FondosScreen\n(UI)" as FondosUI
+
+== Crear transacción ==
+Usuario -> UI : Completa formulario\n(Monto, Cuenta, Categoría)\nPulsa "Guardar"
+UI -> Notifier : addTransaccion(Transaccion t)
+Notifier -> UseCase : validate & execute(t)
+UseCase -> Repo : insertTransaccion(t)
+
+note right of Repo
+  - `insertTransaccion` escribe ambos campos: `monto` (legacy REAL) y `monto_cents` (INTEGER).
+  - Actualiza la `cuenta` escribiendo `saldo_inicial` y `saldo_cents`.
+  - Operaciones críticas ejecutadas dentro de una transacción SQL para integridad.
+end note
+
+alt DB Transaction OK
+  Repo -> DB : BEGIN TRANSACTION
+  Repo -> DB : INSERT INTO transacciones\n  (monto, monto_cents, fecha, cuenta_id, ...)
+  DB --> Repo : OK (new id)
+  Repo -> DB : UPDATE cuentas SET saldo_inicial = ?, saldo_cents = ? WHERE cuenta_id = ?
+  DB --> Repo : OK
+  Repo -> DB : COMMIT
+  Repo --> UseCase : insertedTransaccion(id, datos)
+  UseCase --> Notifier : success(updated transacción)
+  note right of Notifier
+    - `TransaccionNotifier.addTransaccion()` retorna la Transacción insertada (incluye `id`).
+  end note
+  Notifier --> UI : state actualizado (lista transacciones)
+  UI --> Usuario : Mostrar SnackBar "Transacción registrada"
+else DB Error
+  Repo -> DB : <SQL operation>
+  DB --> Repo : ERROR (ej. no such column)
+  Repo --> UseCase : throw DatabaseException
+  note right
+    - Causa común: base de datos previa (v1) sin columnas `*_cents`.
+    - Solución: ejecutar migración (onUpgrade v1->v2) o limpiar datos del emulador para recrear DB.
+  end note
+  UseCase --> Notifier : error propagated
+  Notifier --> UI : Mostrar SnackBar/Error
+end
+
+== Flujo opcional: Asignar parte a un Fondo ==
+UI -> Dialog : Mostrar diálogo asignación (slider + input) [solo si tipo == 'Ingreso']
+note right of UI
+  - Diálogo se abre automáticamente para Ingresos (no bloqueante).
+  - También se muestra SnackBar con acción 'Asignar' para abrir el diálogo si el usuario
+    prefiere hacerlo después.
+end note
+alt Usuario confirma asignación
+  Dialog -> CreateAsignacion : execute(Asignacion a)
+  CreateAsignacion -> FondoRepo : insertAsignacion(a)
+  FondoRepo -> DB : INSERT INTO asignaciones_ahorro\n  (monto_asignado, monto_asignado_cents, transaccion_id, fondo_id)
+  DB --> FondoRepo : OK (new asignacion id)
+  FondoRepo --> CreateAsignacion : id
+  CreateAsignacion --> FondosNotifier : refresh()
+  FondosNotifier -> FondoRepo : getAllFondos / getAsignacionesByFondo
+  FondoRepo -> DB : SELECT ...  (maps)
+  DB --> FondoRepo : List<Map>
+  FondoRepo -> FondosNotifier : List<Fondo>  <-- conversion Map->Model via `compute()` (isolate)
+  FondosNotifier --> FondosUI : actualizar lista de fondos
+  FondosUI --> Usuario : mostrar cambio (meta, asignado)
+end
+
+== Notas de rendimiento y seguridad ==
+note right of Repo
+  - Conversión Map→Model realizada en isolate (`compute()`), para evitar jank en UI.
+  - Inserciones críticas envueltas en transacción DB.
+  - Para compatibilidad durante migración se escriben ambos campos (legacy REAL y `*_cents`).
+end note
+
+@enduml

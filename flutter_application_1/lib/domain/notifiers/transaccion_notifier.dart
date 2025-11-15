@@ -1,11 +1,11 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../usecases/create_transaccion_usecase.dart';
 import '../../data/models/transaccion_model.dart';
-import '../../data/repositories/transaccion_repository.dart';
+import '../repositories/i_transaccion_repository.dart';
 
 class TransaccionNotifier extends StateNotifier<List<Transaccion>> {
   final CreateTransaccionUseCase createUseCase;
-  final TransaccionRepository repository;
+  final ITransaccionRepository repository;
 
   TransaccionNotifier(this.createUseCase, this.repository) : super([]) {
     _loadAll();
@@ -16,7 +16,7 @@ class TransaccionNotifier extends StateNotifier<List<Transaccion>> {
     state = all;
   }
 
-  Future<void> addTransaccion(Transaccion t) async {
+  Future<Transaccion> addTransaccion(Transaccion t) async {
     final id = await createUseCase.execute(t);
     final inserted = Transaccion(
       id: id,
@@ -29,6 +29,7 @@ class TransaccionNotifier extends StateNotifier<List<Transaccion>> {
       tipo: t.tipo,
     );
     state = [inserted, ...state];
+    return inserted;
   }
 
   Future<void> deleteTransaccion(int transaccionId) async {
